@@ -28,7 +28,7 @@ export declare class AnalyticsController {
         insights: never[];
     }>;
     monthly(): Promise<{
-        month: string;
+        month: string | any[];
         income: number;
         expense: number;
         balance: number;
@@ -42,7 +42,7 @@ export declare class AnalyticsController {
     }>;
     comparison(): Promise<{
         previous: number;
-        current: number;
+        current: any;
         difference: number;
         percentage: number;
     }>;

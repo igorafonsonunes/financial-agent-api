@@ -31,7 +31,7 @@ export declare class AnalyticsService {
         insights: never[];
     }>;
     getMonthly(): Promise<{
-        month: string;
+        month: string | any[];
         income: number;
         expense: number;
         balance: number;
@@ -45,7 +45,7 @@ export declare class AnalyticsService {
     }>;
     getComparison(): Promise<{
         previous: number;
-        current: number;
+        current: any;
         difference: number;
         percentage: number;
     }>;
