@@ -32,7 +32,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateImportDto.prototype, "filename", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'date,description,amount\n2026-09-01,COMPRA XYZ,100.00' }),
+    (0, swagger_1.ApiProperty)({ example: 'date,description,amount\n2026-09-01,COMPRA XYZ,100.00', description: 'CSV text, or base64-encoded bytes for PDF statements' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)

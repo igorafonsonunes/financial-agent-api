@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CsvParserFactory } from '../../core/parser';
 import { DeduplicationStrategy } from '../../core/deduplication';
 import { CreateImportDto } from './dto/create-import.dto';
+import { parseCaixaPdf } from '../../core/caixa-pdf';
 
 @Injectable()
 export class ImportsService {
@@ -11,15 +12,16 @@ export class ImportsService {
 
   async createImport(dto: CreateImportDto) {
     const content = dto.content ?? '';
-    const parser = CsvParserFactory.create(dto.filename, content);
-    const normalizedRows = await parser.parse(content);
+    const isPdf = dto.filename.toLowerCase().endsWith('.pdf');
+    const parser = isPdf ? null : CsvParserFactory.create(dto.filename, content);
+    const normalizedRows = isPdf ? await parseCaixaPdf(content) : await parser!.parse(content);
     const fileHash = createHash('sha256').update(content).digest('hex');
 
     const importRecord = await this.prisma.import.create({
       data: {
         accountId: dto.accountId,
         filename: dto.filename,
-        parserType: parser.constructor.name,
+        parserType: isPdf ? 'CaixaPdfOcrParser' : parser!.constructor.name,
         fileHash,
         status: 'PROCESSING',
         totalRows: normalizedRows.length,

@@ -160,6 +160,7 @@ export class InterCsvParser extends BaseCsvParser {
   canParse(fileName: string, sample: string): boolean {
     return (
       fileName.toLowerCase().includes('inter') ||
+      sample.includes('Extrato Conta Corrente') ||
       sample.includes('Data Lançamento') ||
       sample.includes('Data Lançamento;Histórico;Descrição;Valor;Saldo')
     );

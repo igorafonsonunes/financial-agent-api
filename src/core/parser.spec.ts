@@ -1,4 +1,4 @@
-import { GenericCsvParser, InterCsvParser, NubankCsvParser } from './parser';
+import { CsvParserFactory, GenericCsvParser, InterCsvParser, NubankCsvParser } from './parser';
 
 describe('NubankCsvParser', () => {
   it('should parse Nubank CSV values into cents and keep credit/debit signal', async () => {
@@ -51,6 +51,44 @@ describe('InterCsvParser', () => {
       metadata: { rawBalanceCents: 250000 },
     });
     expect(rows[0].metadata.bankTransactionId).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('parses the current-account export layout produced by Banco Inter', async () => {
+    const csv = [
+      ' Extrato Conta Corrente ',
+      'Conta ;16010809',
+      'Período ;11/08/2026 a 11/09/2026',
+      'Saldo ;0,00',
+      '',
+      'Data Lançamento;Histórico;Descrição;Valor;Saldo',
+      '31/08/2026;Salário recebido - Portabilidade;;4.994,61;0,00',
+      '31/08/2026;Pagamento efetuado;Pagamento Fatura;-432,32;-4.994,61',
+      '31/08/2026;Pix enviado ;Igor Afonso Nunes;-4.562,29;-4.562,29',
+    ].join('\n');
+
+    const parser = CsvParserFactory.create('Inter-11-08-2026-a-11-09-2026-CSV.csv', csv);
+    const rows = await parser.parse(csv);
+
+    expect(parser).toBeInstanceOf(InterCsvParser);
+    expect(rows).toHaveLength(3);
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        date: new Date('2026-08-31T00:00:00.000Z'),
+        originalDescription: 'Salário recebido - Portabilidade',
+        amountCents: 499461,
+        type: 'CREDIT',
+      }),
+      expect.objectContaining({
+        originalDescription: 'Pagamento efetuado - Pagamento Fatura',
+        amountCents: -43232,
+        type: 'DEBIT',
+      }),
+      expect.objectContaining({
+        originalDescription: 'Pix enviado - Igor Afonso Nunes',
+        amountCents: -456229,
+        type: 'DEBIT',
+      }),
+    ]));
   });
 });
 

@@ -10,39 +10,32 @@ const csv_parser_1 = __importDefault(require("csv-parser"));
 class BaseCsvParser {
     parseDate(value) {
         const trimmed = value.trim();
-        const [day, month, year] = trimmed.split('/');
-        const parsedDay = Number(day);
-        const parsedMonth = Number(month) - 1;
-        const parsedYear = Number(year);
-        return new Date(Date.UTC(parsedYear, parsedMonth, parsedDay));
+        if (!trimmed) {
+            throw new Error('Transaction date is required');
+        }
+        const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+        if (isoMatch) {
+            const [, year, month, day] = isoMatch;
+            const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+            if (!Number.isNaN(date.getTime()))
+                return date;
+        }
+        const brMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+        if (brMatch) {
+            const [, day, month, year] = brMatch;
+            const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+            if (!Number.isNaN(date.getTime()))
+                return date;
+        }
+        throw new Error(`Unsupported date format: ${trimmed}`);
     }
     parseDecimalToCents(value) {
         const trimmed = (value ?? '0').trim();
-        if (!trimmed) {
+        if (!trimmed)
             return 0;
-        }
-        let normalized = trimmed.replace(/\s+/g, '');
-        if (normalized.includes('.') && normalized.includes(',')) {
-            normalized = normalized.replace(/\./g, '').replace(',', '.');
-        }
-        else if (normalized.includes(',')) {
-            normalized = normalized.replace(',', '.');
-        }
-        const numeric = Number(normalized);
-        if (!Number.isFinite(numeric)) {
-            return 0;
-        }
-        return Math.round(numeric * 100);
-    }
-    parsePlainDecimalToCents(value) {
-        const trimmed = (value ?? '0').trim();
-        if (!trimmed) {
-            return 0;
-        }
         let normalized = trimmed.replace(/[^0-9,.-]/g, '');
-        if (!normalized) {
+        if (!normalized)
             return 0;
-        }
         if (normalized.includes('.') && normalized.includes(',')) {
             normalized = normalized.replace(/\./g, '').replace(',', '.');
         }
@@ -50,9 +43,8 @@ class BaseCsvParser {
             normalized = normalized.replace(',', '.');
         }
         const numeric = Number(normalized);
-        if (!Number.isFinite(numeric)) {
+        if (!Number.isFinite(numeric))
             return 0;
-        }
         return Math.round(numeric * 100);
     }
     typeFromAmount(amountCents) {
@@ -67,11 +59,9 @@ class BaseCsvParser {
                 mapHeaders: ({ header }) => (header ? header.trim() : ''),
                 mapValues: ({ value }) => (typeof value === 'string' ? value.trim() : value),
             }))
-                .on('data', (row) => {
-                rows.push(row);
-            })
-                .on('end', () => resolve())
-                .on('error', (error) => reject(error));
+                .on('data', (row) => rows.push(row))
+                .on('end', resolve)
+                .on('error', reject);
         });
         return rows;
     }
@@ -82,28 +72,18 @@ class GenericCsvParser extends BaseCsvParser {
         return fileName.toLowerCase().endsWith('.csv') || sample.includes(',');
     }
     async parse(content) {
-        const lines = content
-            .split(/\r?\n/)
-            .map((line) => line.trim())
-            .filter(Boolean);
-        if (lines.length === 0) {
-            return [];
-        }
         const rows = await this.parseCsvRows(content);
-        return rows.slice(1).map((row) => {
-            const dateValue = Object.values(row)[0] ?? new Date().toISOString();
-            const originalDescription = Object.values(row)[1]?.trim() || 'Unknown';
-            const amountValue = Object.values(row)[2] ?? '0';
-            const amountCents = this.parsePlainDecimalToCents(amountValue);
+        return rows.map((row, index) => {
+            const values = Object.values(row);
+            const date = this.parseDate(values[0] ?? '');
+            const originalDescription = values[1]?.trim() || 'Unknown';
+            const amountCents = this.parseDecimalToCents(values[2] ?? '0');
             return {
-                date: this.parseDate(dateValue),
+                date,
                 originalDescription,
                 amountCents,
                 type: this.typeFromAmount(amountCents),
-                metadata: {
-                    source: 'generic-csv',
-                    rowNumber: rows.indexOf(row) + 2,
-                },
+                metadata: { source: 'generic-csv', rowNumber: index + 2 },
             };
         });
     }
@@ -113,8 +93,7 @@ class NubankCsvParser extends BaseCsvParser {
     delimiter = ',';
     canParse(fileName, sample) {
         return (fileName.toLowerCase().includes('nubank') ||
-            sample.includes('Data,Valor,Identificador,Descrição') ||
-            sample.includes('Data,Valor'));
+            sample.includes('Data,Valor,Identificador,Descrição'));
     }
     async parse(content) {
         const rows = await this.parseCsvRows(content);
@@ -122,7 +101,7 @@ class NubankCsvParser extends BaseCsvParser {
             .filter((row) => row['Data'] || row['Valor'])
             .map((row) => {
             const date = this.parseDate(row['Data'] ?? '');
-            const amountCents = this.parsePlainDecimalToCents(row['Valor'] ?? '0');
+            const amountCents = this.parseDecimalToCents(row['Valor'] ?? '0');
             const originalDescription = (row['Descrição'] ?? '').trim();
             const bankTransactionId = row['Identificador']?.trim();
             return {
@@ -130,9 +109,7 @@ class NubankCsvParser extends BaseCsvParser {
                 originalDescription,
                 amountCents,
                 type: this.typeFromAmount(amountCents),
-                metadata: {
-                    bankTransactionId,
-                },
+                metadata: { bankTransactionId },
             };
         });
     }
@@ -142,6 +119,7 @@ class InterCsvParser extends BaseCsvParser {
     delimiter = ';';
     canParse(fileName, sample) {
         return (fileName.toLowerCase().includes('inter') ||
+            sample.includes('Extrato Conta Corrente') ||
             sample.includes('Data Lançamento') ||
             sample.includes('Data Lançamento;Histórico;Descrição;Valor;Saldo'));
     }
@@ -181,12 +159,10 @@ class InterCsvParser extends BaseCsvParser {
 exports.InterCsvParser = InterCsvParser;
 class CsvParserFactory {
     static create(fileName = 'export.csv', sample = '') {
-        if (new NubankCsvParser().canParse(fileName, sample)) {
+        if (new NubankCsvParser().canParse(fileName, sample))
             return new NubankCsvParser();
-        }
-        if (new InterCsvParser().canParse(fileName, sample)) {
+        if (new InterCsvParser().canParse(fileName, sample))
             return new InterCsvParser();
-        }
         return new GenericCsvParser();
     }
 }

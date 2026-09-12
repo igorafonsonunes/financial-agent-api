@@ -15,29 +15,49 @@ const node_crypto_1 = require("node:crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const parser_1 = require("../../core/parser");
 const deduplication_1 = require("../../core/deduplication");
+const caixa_pdf_1 = require("../../core/caixa-pdf");
 let ImportsService = class ImportsService {
     prisma;
     constructor(prisma) {
         this.prisma = prisma;
     }
     async createImport(dto) {
-        const parser = parser_1.CsvParserFactory.create(dto.filename, dto.content || '');
-        const normalizedRows = await parser.parse(dto.content || '');
-        const fileHash = (0, node_crypto_1.createHash)('sha256').update(dto.content || '').digest('hex');
+        const content = dto.content ?? '';
+        const isPdf = dto.filename.toLowerCase().endsWith('.pdf');
+        const parser = isPdf ? null : parser_1.CsvParserFactory.create(dto.filename, content);
+        const normalizedRows = isPdf ? await (0, caixa_pdf_1.parseCaixaPdf)(content) : await parser.parse(content);
+        const fileHash = (0, node_crypto_1.createHash)('sha256').update(content).digest('hex');
         const importRecord = await this.prisma.import.create({
             data: {
                 accountId: dto.accountId,
                 filename: dto.filename,
-                parserType: parser.constructor.name,
+                parserType: isPdf ? 'CaixaPdfOcrParser' : parser.constructor.name,
                 fileHash,
-                status: 'COMPLETED',
+                status: 'PROCESSING',
                 totalRows: normalizedRows.length,
-                importedRows: normalizedRows.length,
             },
         });
+        let importedRows = 0;
+        let duplicateRows = 0;
+        let invalidRows = 0;
         for (const [index, row] of normalizedRows.entries()) {
-            const description = row.originalDescription || 'Sem descrição';
-            const dbTransactionType = row.type === 'CREDIT' ? 'INCOME' : 'EXPENSE';
+            const description = row.originalDescription?.trim() || 'Sem descrição';
+            const bankTransactionId = typeof row.metadata?.bankTransactionId === 'string'
+                ? row.metadata.bankTransactionId
+                : null;
+            if (!row.date || !Number.isInteger(row.amountCents)) {
+                invalidRows += 1;
+                await this.prisma.rawImportRow.create({
+                    data: {
+                        importId: importRecord.id,
+                        rowNumber: index + 1,
+                        rawData: JSON.stringify(row),
+                        parsed: false,
+                        error: 'Invalid normalized transaction data',
+                    },
+                });
+                continue;
+            }
             const signature = deduplication_1.DeduplicationStrategy.signature({
                 accountId: dto.accountId,
                 date: row.date.toISOString().slice(0, 10),
@@ -45,13 +65,26 @@ let ImportsService = class ImportsService {
                 amountCents: row.amountCents,
                 installmentCurrent: row.installment?.current,
                 installmentTotal: row.installment?.total,
+                bankTransactionId,
             });
             const existing = await this.prisma.transactionEntry.findFirst({
                 where: { originalHash: signature },
+                select: { id: true },
             });
             if (existing) {
+                duplicateRows += 1;
+                await this.prisma.rawImportRow.create({
+                    data: {
+                        importId: importRecord.id,
+                        rowNumber: index + 1,
+                        rawData: JSON.stringify(row),
+                        parsed: true,
+                        error: 'Duplicate transaction',
+                    },
+                });
                 continue;
             }
+            const dbTransactionType = row.type === 'CREDIT' ? 'INCOME' : 'EXPENSE';
             const transaction = await this.prisma.financialTransaction.create({
                 data: {
                     type: dbTransactionType,
@@ -59,6 +92,7 @@ let ImportsService = class ImportsService {
                     normalizedDescription: description,
                     displayName: description,
                     totalAmountCents: row.amountCents,
+                    installmentTotal: row.installment?.total,
                     currency: 'BRL',
                 },
             });
@@ -84,12 +118,22 @@ let ImportsService = class ImportsService {
                 data: {
                     importId: importRecord.id,
                     rowNumber: index + 1,
-                    rawData: JSON.stringify({ description, amountCents: row.amountCents }),
+                    rawData: JSON.stringify(row),
                     parsed: true,
                 },
             });
+            importedRows += 1;
         }
-        return importRecord;
+        return this.prisma.import.update({
+            where: { id: importRecord.id },
+            data: {
+                status: invalidRows > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED',
+                importedRows,
+                duplicateRows,
+                invalidRows,
+                completedAt: new Date(),
+            },
+        });
     }
     findAll() {
         return this.prisma.import.findMany({ orderBy: { createdAt: 'desc' } });

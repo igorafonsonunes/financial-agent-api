@@ -50,6 +50,18 @@ async function main() {
     });
   }
 
+  await prisma.account.upsert({
+    where: { id: 'checking-nubank' },
+    update: {},
+    create: {
+      id: 'checking-nubank',
+      name: 'Conta Nubank',
+      institutionName: 'Nubank',
+      type: 'CHECKING',
+      currency: 'BRL',
+    },
+  });
+
   await prisma.profile.upsert({
     where: { id: 'fixed-profile' },
     update: {},

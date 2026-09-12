@@ -1,5 +1,7 @@
 FROM node:22-alpine
 
+RUN apk add --no-cache poppler-utils tesseract-ocr tesseract-ocr-data-por
+
 WORKDIR /app
 
 COPY package*.json ./

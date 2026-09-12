@@ -12,7 +12,7 @@ export class CreateImportDto {
   @IsNotEmpty()
   filename: string;
 
-  @ApiProperty({ example: 'date,description,amount\n2026-09-01,COMPRA XYZ,100.00' })
+  @ApiProperty({ example: 'date,description,amount\n2026-09-01,COMPRA XYZ,100.00', description: 'CSV text, or base64-encoded bytes for PDF statements' })
   @IsString()
   @IsNotEmpty()
   content: string;

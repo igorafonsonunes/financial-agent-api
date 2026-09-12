@@ -45,7 +45,7 @@ let AnalyticsService = class AnalyticsService {
                 fixed: 0,
                 variable: 0,
             },
-            categories: analytics_1.CategoryCalculator.aggregate(transactions.map((row) => ({ amountCents: row.amountCents, category: 'uncategorized' }))),
+            categories: Object.entries(analytics_1.CategoryCalculator.aggregate(transactions.map((row) => ({ amountCents: row.amountCents, category: 'uncategorized' })))).map(([category, amount]) => ({ category, amount })),
             profiles: analytics_1.ProfileCalculator.aggregate(transactions.map((row) => ({ amountCents: row.amountCents, profile: 'default' }))),
             merchants: analytics_1.MerchantCalculator.aggregate(transactions.map((row) => ({ amountCents: row.amountCents, merchant: row.displayName ?? 'Unknown' }))),
             recurring: [],

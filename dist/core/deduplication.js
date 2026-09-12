@@ -15,6 +15,7 @@ class DeduplicationStrategy {
             amountCents: input.amountCents,
             installmentCurrent: input.installmentCurrent ?? null,
             installmentTotal: input.installmentTotal ?? null,
+            bankTransactionId: input.bankTransactionId ?? null,
         };
         return (0, node_crypto_1.createHash)('sha256').update(JSON.stringify(payload)).digest('hex');
     }

@@ -38,9 +38,11 @@ export class AnalyticsService {
         fixed: 0,
         variable: 0,
       },
-      categories: CategoryCalculator.aggregate(
-        transactions.map((row: { amountCents: any; }) => ({ amountCents: row.amountCents, category: 'uncategorized' })),
-      ),
+      categories: Object.entries(
+        CategoryCalculator.aggregate(
+          transactions.map((row: { amountCents: any; }) => ({ amountCents: row.amountCents, category: 'uncategorized' })),
+        ),
+      ).map(([category, amount]) => ({ category, amount })),
       profiles: ProfileCalculator.aggregate(
         transactions.map((row: { amountCents: any; }) => ({ amountCents: row.amountCents, profile: 'default' })),
       ),

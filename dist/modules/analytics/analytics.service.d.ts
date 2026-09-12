@@ -22,7 +22,10 @@ export declare class AnalyticsService {
             fixed: number;
             variable: number;
         };
-        categories: Record<string, number>;
+        categories: {
+            category: string;
+            amount: number;
+        }[];
         profiles: Record<string, number>;
         merchants: Record<string, number>;
         recurring: never[];

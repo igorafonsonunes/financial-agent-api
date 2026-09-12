@@ -5,6 +5,7 @@ export interface DeduplicationInput {
     amountCents: number;
     installmentCurrent?: number | null;
     installmentTotal?: number | null;
+    bankTransactionId?: string | null;
 }
 export declare class DeduplicationStrategy {
     static signature(input: DeduplicationInput): string;

@@ -21,7 +21,6 @@ declare abstract class BaseCsvParser implements CsvParser {
     abstract parse(content: string): Promise<NormalizedTransaction[]>;
     protected parseDate(value: string): Date;
     protected parseDecimalToCents(value: string): number;
-    protected parsePlainDecimalToCents(value: string): number;
     protected typeFromAmount(amountCents: number): TransactionType;
     protected parseCsvRows(content: string): Promise<Record<string, string>[]>;
 }
