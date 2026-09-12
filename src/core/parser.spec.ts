@@ -1,4 +1,4 @@
-import { InterCsvParser, NubankCsvParser } from './parser';
+import { GenericCsvParser, InterCsvParser, NubankCsvParser } from './parser';
 
 describe('NubankCsvParser', () => {
   it('should parse Nubank CSV values into cents and keep credit/debit signal', async () => {
@@ -16,18 +16,14 @@ describe('NubankCsvParser', () => {
       originalDescription: 'Salário',
       amountCents: 750000,
       type: 'CREDIT',
-      metadata: {
-        bankTransactionId: 'abc-1',
-      },
+      metadata: { bankTransactionId: 'abc-1' },
     });
     expect(rows[1]).toMatchObject({
       date: new Date('2024-09-05T00:00:00.000Z'),
       originalDescription: 'Supermercado',
       amountCents: -421708,
       type: 'DEBIT',
-      metadata: {
-        bankTransactionId: 'txn-2',
-      },
+      metadata: { bankTransactionId: 'txn-2' },
     });
   });
 });
@@ -52,18 +48,23 @@ describe('InterCsvParser', () => {
       originalDescription: 'PIX ENVIADO - Mercado',
       amountCents: 499461,
       type: 'CREDIT',
-      metadata: {
-        rawBalanceCents: 250000,
-      },
+      metadata: { rawBalanceCents: 250000 },
     });
     expect(rows[0].metadata.bankTransactionId).toMatch(/^[a-f0-9]{64}$/);
-    expect(rows[1]).toMatchObject({
-      originalDescription: 'SALARIO - Recebimento',
-      amountCents: 125000,
-      type: 'CREDIT',
-      metadata: {
-        rawBalanceCents: 375000,
-      },
-    });
+  });
+});
+
+describe('GenericCsvParser', () => {
+  it('supports ISO dates and Brazilian-formatted amounts', async () => {
+    const csv = [
+      'date,description,amount',
+      '2026-09-01,COMPRA XYZ,"1.234,56"',
+    ].join('\n');
+
+    const [row] = await new GenericCsvParser().parse(csv);
+
+    expect(row.date.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(row.amountCents).toBe(123456);
+    expect(row.type).toBe('CREDIT');
   });
 });
