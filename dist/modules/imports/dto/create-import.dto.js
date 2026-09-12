@@ -22,19 +22,19 @@ exports.CreateImportDto = CreateImportDto;
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'account-id' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    IsNotEmpty(),
     __metadata("design:type", String)
 ], CreateImportDto.prototype, "accountId", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'statement.csv' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    IsNotEmpty(),
     __metadata("design:type", String)
 ], CreateImportDto.prototype, "filename", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'date,description,amount\n2026-09-01,COMPRA XYZ,100.00', description: 'CSV text, or base64-encoded bytes for PDF statements' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateImportDto.prototype, "content", void 0);
 __decorate([

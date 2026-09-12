@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateImportDto } from './dto/create-import.dto';
 import { ImportsService } from './imports.service';
@@ -9,9 +10,14 @@ export class ImportsController {
   constructor(private readonly service: ImportsService) {}
 
   @Post()
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
   @ApiOperation({ summary: 'Create import record and parse a CSV' })
-  create(@Body() dto: CreateImportDto) {
-    return this.service.createImport(dto);
+  create(@Body() dto: CreateImportDto, @UploadedFile() file?: { buffer: Buffer; originalname: string }) {
+    return this.service.createImport({
+      ...dto,
+      filename: file?.originalname ?? dto.filename,
+      content: file ? file.buffer.toString('base64') : dto.content ?? '',
+    });
   }
 
   @Get()

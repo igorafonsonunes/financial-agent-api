@@ -14,8 +14,8 @@ export class CreateImportDto {
 
   @ApiProperty({ example: 'date,description,amount\n2026-09-01,COMPRA XYZ,100.00', description: 'CSV text, or base64-encoded bytes for PDF statements' })
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  content?: string;
 
   @ApiPropertyOptional({ example: 'generic' })
   @IsOptional()

@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImportsController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
 const create_import_dto_1 = require("./dto/create-import.dto");
 const imports_service_1 = require("./imports.service");
@@ -22,8 +23,12 @@ let ImportsController = class ImportsController {
     constructor(service) {
         this.service = service;
     }
-    create(dto) {
-        return this.service.createImport(dto);
+    create(dto, file) {
+        return this.service.createImport({
+            ...dto,
+            filename: file?.originalname ?? dto.filename,
+            content: file ? file.buffer.toString('base64') : dto.content ?? '',
+        });
     }
     findAll() {
         return this.service.findAll();
@@ -35,10 +40,12 @@ let ImportsController = class ImportsController {
 exports.ImportsController = ImportsController;
 __decorate([
     (0, common_1.Post)(),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { limits: { fileSize: 8 * 1024 * 1024 } })),
     (0, swagger_1.ApiOperation)({ summary: 'Create import record and parse a CSV' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_import_dto_1.CreateImportDto]),
+    __metadata("design:paramtypes", [create_import_dto_1.CreateImportDto, Object]),
     __metadata("design:returntype", void 0)
 ], ImportsController.prototype, "create", null);
 __decorate([

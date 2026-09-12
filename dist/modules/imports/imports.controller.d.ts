@@ -3,7 +3,10 @@ import { ImportsService } from './imports.service';
 export declare class ImportsController {
     private readonly service;
     constructor(service: ImportsService);
-    create(dto: CreateImportDto): Promise<{
+    create(dto: CreateImportDto, file?: {
+        buffer: Buffer;
+        originalname: string;
+    }): Promise<{
         id: string;
         createdAt: Date;
         accountId: string;
