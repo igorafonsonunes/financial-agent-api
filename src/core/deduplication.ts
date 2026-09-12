@@ -7,6 +7,7 @@ export interface DeduplicationInput {
   amountCents: number;
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
+  bankTransactionId?: string | null;
 }
 
 export class DeduplicationStrategy {
@@ -23,6 +24,7 @@ export class DeduplicationStrategy {
       amountCents: input.amountCents,
       installmentCurrent: input.installmentCurrent ?? null,
       installmentTotal: input.installmentTotal ?? null,
+      bankTransactionId: input.bankTransactionId ?? null,
     };
 
     return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
