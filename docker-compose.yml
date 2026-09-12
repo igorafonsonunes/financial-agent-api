@@ -1,0 +1,18 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: financial-core-app
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: file:./dev.db
+      PORT: 3000
+    volumes:
+      - .:/app
+      - sqlite-data:/app/prisma
+    command: npm run start:dev
+
+volumes:
+  sqlite-data:

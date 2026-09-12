@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite-compatible schema: enum values are stored as strings instead of Prisma enums.
+
+model Account {
+  id             String          @id @default(cuid())
+  name           String
+  institutionName String?
+  type           String          @default("CHECKING")
+  currency       String          @default("BRL")
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  imports        Import[]
+  entries        TransactionEntry[]
+}
+
+model Import {
+  id            String        @id @default(cuid())
+  accountId     String
+  filename      String
+  parserType    String
+  fileHash      String?
+  status        String        @default("PROCESSING")
+  totalRows     Int           @default(0)
+  importedRows  Int           @default(0)
+  duplicateRows Int           @default(0)
+  invalidRows   Int           @default(0)
+  createdAt     DateTime      @default(now())
+  completedAt   DateTime?
+  account       Account       @relation(fields: [accountId], references: [id])
+  rows          RawImportRow[]
+  entries       TransactionEntry[]
+}
+
+model RawImportRow {
+  id        String   @id @default(cuid())
+  importId  String
+  rowNumber Int
+  rawData   String
+  parsed    Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now())
+  import    Import   @relation(fields: [importId], references: [id])
+}
+
+model FinancialTransaction {
+  id                     String                    @id @default(cuid())
+  type                   String                    @default("EXPENSE")
+  description            String
+  normalizedDescription  String?
+  displayName            String?
+  merchantId             String?
+  installmentTotal       Int?
+  totalAmountCents       Int?
+  currency               String                    @default("BRL")
+  notes                  String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  merchant               Merchant?                 @relation(fields: [merchantId], references: [id])
+  entries                TransactionEntry[]
+  classifications        TransactionClassification[]
+  sourceLinks            TransactionLink[]         @relation("sourceTransaction")
+  targetLinks            TransactionLink[]         @relation("targetTransaction")
+}
+
+model TransactionEntry {
+  id                     String               @id @default(cuid())
+  financialTransactionId String
+  accountId              String
+  importId               String?
+  transactionDate        DateTime
+  postingDate            DateTime?
+  originalDescription    String
+  normalizedDescription  String?
+  displayName            String?
+  amountCents            Int
+  currency               String               @default("BRL")
+  entryType              String               @default("DEBIT")
+  installmentCurrent     Int?
+  installmentTotal       Int?
+  originalHash           String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  financialTransaction   FinancialTransaction @relation(fields: [financialTransactionId], references: [id])
+  account                Account              @relation(fields: [accountId], references: [id])
+  import                 Import?              @relation(fields: [importId], references: [id])
+}
+
+model Merchant {
+  id              String                  @id @default(cuid())
+  name            String
+  normalizedName  String?
+  active          Boolean                 @default(true)
+  notes           String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  transactions    FinancialTransaction[]
+  rules           CategorizationRule[]
+  recurring       RecurringTransaction[]
+}
+
+model Category {
+  id            String                 @id @default(cuid())
+  name          String
+  description   String?
+  parentId      String?
+  active        Boolean                @default(true)
+  color         String?
+  icon          String?
+  sortOrder     Int                    @default(0)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  parent        Category?              @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children      Category[]             @relation("CategoryHierarchy")
+  categoryRules CategorizationRule[]   @relation("CategoryRules")
+  subcategoryRules CategorizationRule[] @relation("SubcategoryRules")
+  categoryClassifications TransactionClassification[] @relation("CategoryClassifications")
+  subcategoryClassifications TransactionClassification[] @relation("SubcategoryClassifications")
+  recurringCategory RecurringTransaction[] @relation("RecurringCategory")
+  recurringSubcategory RecurringTransaction[] @relation("RecurringSubcategory")
+}
+
+model Profile {
+  id             String                  @id @default(cuid())
+  name           String
+  description    String?
+  active         Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  classifications TransactionClassification[]
+  rules          CategorizationRule[]
+  recurring      RecurringTransaction[]
+}
+
+model TransactionClassification {
+  id                    String               @id @default(cuid())
+  financialTransactionId String
+  categoryId            String?
+  subcategoryId         String?
+  profileId             String?
+  isEssential           Boolean              @default(false)
+  source                String               @default("RULE")
+  confidence            Float                @default(0)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  financialTransaction  FinancialTransaction @relation(fields: [financialTransactionId], references: [id])
+  category              Category?            @relation("CategoryClassifications", fields: [categoryId], references: [id])
+  subcategory           Category?            @relation("SubcategoryClassifications", fields: [subcategoryId], references: [id])
+  profile               Profile?             @relation(fields: [profileId], references: [id])
+}
+
+model CategorizationRule {
+  id                  String      @id @default(cuid())
+  name                String
+  description         String?
+  pattern             String
+  matchType           String
+  merchantId          String?
+  categoryId          String?
+  subcategoryId       String?
+  profileId           String?
+  displayNameTemplate String?
+  isEssential         Boolean     @default(false)
+  priority            Int         @default(0)
+  active              Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  merchant            Merchant?   @relation(fields: [merchantId], references: [id])
+  category            Category?   @relation("CategoryRules", fields: [categoryId], references: [id])
+  subcategory         Category?   @relation("SubcategoryRules", fields: [subcategoryId], references: [id])
+  profile             Profile?    @relation(fields: [profileId], references: [id])
+}
+
+model RecurringTransaction {
+  id                 String      @id @default(cuid())
+  merchantId         String?
+  description        String
+  categoryId         String?
+  subcategoryId      String?
+  profileId          String?
+  frequency          String      @default("MONTHLY")
+  expectedAmountCents Int
+  lastOccurrenceDate DateTime?
+  nextExpectedDate   DateTime?
+  confirmed          Boolean     @default(false)
+  active             Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  merchant           Merchant?   @relation(fields: [merchantId], references: [id])
+  category           Category?   @relation("RecurringCategory", fields: [categoryId], references: [id])
+  subcategory        Category?   @relation("RecurringSubcategory", fields: [subcategoryId], references: [id])
+  profile            Profile?    @relation(fields: [profileId], references: [id])
+}
+
+model TransactionLink {
+  id                 String                @id @default(cuid())
+  sourceTransactionId String
+  targetTransactionId String
+  type               String                @default("RELATED")
+  createdAt          DateTime              @default(now())
+  sourceTransaction  FinancialTransaction  @relation("sourceTransaction", fields: [sourceTransactionId], references: [id])
+  targetTransaction  FinancialTransaction  @relation("targetTransaction", fields: [targetTransactionId], references: [id])
+}
