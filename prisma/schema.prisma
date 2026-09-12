@@ -86,9 +86,9 @@ model TransactionEntry {
   entryType              String               @default("DEBIT")
   installmentCurrent     Int?
   installmentTotal       Int?
-  originalHash           String?
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  originalHash           String?              @unique
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
   financialTransaction   FinancialTransaction @relation(fields: [financialTransactionId], references: [id])
   account                Account              @relation(fields: [accountId], references: [id])
   import                 Import?              @relation(fields: [importId], references: [id])
@@ -192,12 +192,12 @@ model RecurringTransaction {
   nextExpectedDate   DateTime?
   confirmed          Boolean     @default(false)
   active             Boolean     @default(true)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
   merchant           Merchant?   @relation(fields: [merchantId], references: [id])
   category           Category?   @relation("RecurringCategory", fields: [categoryId], references: [id])
   subcategory        Category?   @relation("RecurringSubcategory", fields: [subcategoryId], references: [id])
-  profile            Profile?    @relation(fields: [profileId], references: [id])
+  profile             Profile?    @relation(fields: [profileId], references: [id])
 }
 
 model TransactionLink {
