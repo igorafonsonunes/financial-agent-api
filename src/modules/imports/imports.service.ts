@@ -141,6 +141,57 @@ export class ImportsService {
     return this.prisma.import.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
+  async remove(id: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const importRecord = await tx.import.findUnique({
+        where: { id },
+        include: {
+          entries: {
+            select: {
+              financialTransactionId: true,
+            },
+          },
+        },
+      });
+
+      if (!importRecord) {
+        throw new NotFoundException(`Import ${id} not found`);
+      }
+
+      const transactionIds = [
+        ...new Set(importRecord.entries.map((entry) => entry.financialTransactionId)),
+      ];
+
+      await tx.transactionEntry.deleteMany({ where: { importId: id } });
+      await tx.rawImportRow.deleteMany({ where: { importId: id } });
+
+      // Keep transactions still used by another entry or related through a link.
+      for (const transactionId of transactionIds) {
+        const remainingEntries = await tx.transactionEntry.count({
+          where: { financialTransactionId: transactionId },
+        });
+        if (remainingEntries > 0) continue;
+
+        const links = await tx.transactionLink.count({
+          where: {
+            OR: [
+              { sourceTransactionId: transactionId },
+              { targetTransactionId: transactionId },
+            ],
+          },
+        });
+        if (links > 0) continue;
+
+        await tx.transactionClassification.deleteMany({
+          where: { financialTransactionId: transactionId },
+        });
+        await tx.financialTransaction.delete({ where: { id: transactionId } });
+      }
+
+      await tx.import.delete({ where: { id } });
+    });
+  }
+
   async findOne(id: string) {
     const importRecord = await this.prisma.import.findUnique({
       where: { id },
