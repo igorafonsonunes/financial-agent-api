@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateImportDto } from './dto/create-import.dto';
@@ -24,6 +24,13 @@ export class ImportsController {
   @ApiOperation({ summary: 'List imports' })
   findAll() {
     return this.service.findAll();
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Delete an import and its imported entries' })
+  async remove(@Param('id') id: string): Promise<void> {
+    await this.service.remove(id);
   }
 
   @Get(':id')
