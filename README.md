@@ -48,6 +48,8 @@ npm run build
 
 O endpoint de health executa `SELECT 1` no PostgreSQL. Se a conexão falhar, retorna HTTP 503 com o estado da API e do banco.
 
+Para executar frontend, API e PostgreSQL juntos, use o Compose canônico em `../docker-compose.yml`. Ele publica o frontend em `localhost:3000`, a API em `localhost:3001` e o PostgreSQL em `localhost:5432`.
+
 ## Dados legados
 
 O arquivo SQLite legado `prisma/dev.db` continha contas, categorias, importações e transações. Ele não faz parte desta fundação PostgreSQL e não foi migrado automaticamente. Qualquer migração deverá ser uma entrega futura, explícita e validada.
