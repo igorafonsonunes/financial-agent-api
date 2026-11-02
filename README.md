@@ -43,9 +43,13 @@ npm run prisma:validate
 npm run typecheck
 npm run lint
 npm test
+npm run test:e2e
 npm run build
 ```
 
+O `prisma:validate` e o teste E2E precisam de `DATABASE_URL` disponível no
+ambiente. Com o `.env` criado a partir de `.env.example`, os comandos podem
+ser executados diretamente.
 O endpoint de health executa `SELECT 1` no PostgreSQL. Se a conexão falhar, retorna HTTP 503 com o estado da API e do banco.
 
 Para executar frontend, API e PostgreSQL juntos, use o Compose canônico em `../docker-compose.yml`. Ele publica o frontend em `localhost:3000`, a API em `localhost:3001` e o PostgreSQL em `localhost:5432`.
