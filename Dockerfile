@@ -1,28 +1,37 @@
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS build
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       openssl \
-       ca-certificates \
-       poppler-utils \
-       tesseract-ocr \
-       tesseract-ocr-por \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-COPY . .
-
+COPY prisma ./prisma
+COPY nest-cli.json tsconfig*.json ./
+COPY src ./src
 RUN npx prisma generate
 RUN npm run build
 
+FROM node:22-bookworm-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV DATABASE_URL=file:/data/financial.db
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
-
-CMD ["sh", "-c", "npx prisma db push && npm run start:prod"]
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then((r) => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

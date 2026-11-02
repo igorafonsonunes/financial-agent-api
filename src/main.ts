@@ -1,22 +1,21 @@
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { json } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  // PDF statements are sent as base64 JSON and exceed Express's 100 KB default.
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
-  app.use(json({ limit: '8mb' }));
+  const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  const config = app.get(ConfigService);
+  const port = config.get<number>('port', 3001);
+  const corsOrigins = config.get<string>('corsOrigins', '');
 
+  app.setGlobalPrefix('api');
   app.enableCors({
-    origin: [
-      'http://localhost:8080',
-      'http://127.0.0.1:8080',
-      'http://localhost:3001',
-      'http://127.0.0.1:3001',
-    ],
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    origin: corsOrigins
+      ? corsOrigins.split(',').map((origin) => origin.trim())
+      : false,
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -26,23 +25,15 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Financial Core API')
-    .setDescription('Deterministic personal finance engine with CSV imports and analytics')
-    .setVersion('1.0')
-    .addTag('accounts')
-    .addTag('imports')
-    .addTag('transactions')
-    .addTag('categories')
-    .addTag('profiles')
-    .addTag('merchants')
-    .addTag('rules')
-    .addTag('analytics')
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Financial Agent API')
+    .setDescription('Backend foundation for the Financial Agent')
+    .setVersion('0.1.0')
     .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
-
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port);
 }
-bootstrap();
+
+void bootstrap();
