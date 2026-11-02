@@ -1,90 +1,53 @@
-# Financial Core
+# Financial Agent API
 
-Financial Core is a modular NestJS + Prisma + SQLite API for deterministic personal finance management. It separates raw import data, normalized data, classifications, analytics, and presentation concerns while preserving the original source information.
+Fundação do backend do Financial Agent, construída com NestJS, TypeScript, Prisma e PostgreSQL.
 
-## Architecture
+Esta entrega contém apenas infraestrutura, persistência e health check. Nenhum módulo financeiro foi incluído. O único modelo é técnico e não contém dados financeiros.
 
-### Core domain
-- Money utilities keep values in integer cents and avoid floating-point issues.
-- DeduplicationStrategy computes a stable hash from account, date, description, amount and installment metadata.
-- CsvParserFactory provides the abstraction for future bank-specific parsers.
-- RuleEngine evaluates deterministic categorization rules with priority and match types.
-- Analytics calculators isolate balance, expense, income, category, profile, merchant, and health calculations.
+## Requisitos
 
-### Modules
-- Accounts
-- Categories
-- Profiles
-- Merchants
-- Transactions
-- Imports (prepared as base structure)
-- Analytics
+- Node.js 22 LTS
+- Docker e Docker Compose
 
-## Prisma schema
-
-The database schema is defined in [prisma/schema.prisma](prisma/schema.prisma) and follows the requested conceptual model: Account, Import, RawImportRow, FinancialTransaction, TransactionEntry, Merchant, Category, Profile, TransactionClassification, CategorizationRule, RecurringTransaction and TransactionLink.
-
-## Deduplication strategy
-
-The key is built from:
-- accountId
-- transactionDate
-- original or normalized description
-- amountCents
-- installmentCurrent and installmentTotal when available
-
-This avoids collapsing different installments like 03/12 and 04/12 while still identifying repeated imports of the same entry.
-
-## Import pipeline
-
-CSV -> CsvParserFactory -> Parser -> RawImportRow -> NormalizedTransaction -> Deduplication -> Normalization -> MerchantResolver -> RuleEngine -> Classification -> FinancialTransaction -> TransactionEntry -> SQLite
-
-## Rule engine
-
-Rules are deterministic and match on exact, contains, starts_with, or ends_with. Rules with higher priority can override generic matches without coupling logic to hardcoded category strings.
-
-## Parcelamento
-
-The data model stores installment metadata on `TransactionEntry` and supports different installments via `installmentCurrent` and `installmentTotal`, while preserving original import descriptions.
-
-## API contracts
-
-The API exposes explicit DTOs and Swagger documentation for CRUD operations and analytics endpoints under `/analytics`.
-
-## Installation
+## Execução com Docker Compose
 
 ```bash
-npm install
 cp .env.example .env
-npx prisma generate
-npx prisma migrate dev --name init
-npm run prisma:seed
-```
-
-## Run locally
-
-```bash
-npm run start:dev
-```
-
-## Run tests
-
-```bash
-npm test
-```
-
-## Swagger
-
-Open the API docs at:
-
-http://localhost:3000/api
-
-## Docker
-
-```bash
 docker compose up --build
 ```
 
-## Importing CSV
+A API ficará disponível em `http://localhost:3001`.
 
-The project includes a generic parser abstraction and a factory. When a real bank CSV is provided, add a parser implementation and register it in the factory without coupling the domain logic to any single bank schema.
+- Health check: `GET http://localhost:3001/api/health`
+- Swagger: `http://localhost:3001/api/docs`
+- PostgreSQL: `localhost:5432`
+
+As credenciais padrão do Compose existem apenas para desenvolvimento e podem ser sobrescritas por variáveis de ambiente. Não versione `.env`.
+
+## Execução local
+
+Inicie um PostgreSQL compatível e configure:
+
+```bash
+cp .env.example .env
+npm ci
+npm run prisma:generate
+npm run prisma:migrate
+npm run start:dev
+```
+
+## Verificações
+
+```bash
+npm run prisma:validate
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+O endpoint de health executa `SELECT 1` no PostgreSQL. Se a conexão falhar, retorna HTTP 503 com o estado da API e do banco.
+
+## Dados legados
+
+O arquivo SQLite legado `prisma/dev.db` continha contas, categorias, importações e transações. Ele não faz parte desta fundação PostgreSQL e não foi migrado automaticamente. Qualquer migração deverá ser uma entrega futura, explícita e validada.
